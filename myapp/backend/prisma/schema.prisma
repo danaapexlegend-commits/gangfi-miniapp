@@ -1,0 +1,87 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MissionStatus {
+  pending
+  completed
+}
+
+model User {
+  id             Int              @id @default(autoincrement())
+  telegram_id    Int?             @unique
+  username       String?
+  first_name     String?
+  referral_code  String           @unique
+  invited_by     String?
+  total_score    Int              @default(0)
+  referral_count Int              @default(0)
+  gang           String?
+  created_at     DateTime         @default(now())
+
+  referralsMade  ReferralInvite[] @relation("UserInviter")
+  referralsGot   ReferralInvite[] @relation("UserInvited")
+  missions       UserMission[]
+  loginRewards   LoginReward[]
+  socialAccounts SocialAccount[]
+}
+
+model ReferralInvite {
+  id         Int      @id @default(autoincrement())
+  inviter_id Int
+  invited_id Int
+  created_at DateTime @default(now())
+
+  inviter User @relation("UserInviter", fields: [inviter_id], references: [id])
+  invited User @relation("UserInvited", fields: [invited_id], references: [id])
+}
+
+model Mission {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String?
+  reward_points Int
+  is_active     Boolean       @default(true)
+  type          String        @default("weekly") // "weekly" یا "seasonal"
+  target_link   String?
+  target_id     String?
+
+  userMissions  UserMission[]
+}
+
+model UserMission {
+  id           Int           @id @default(autoincrement())
+  user_id      Int
+  mission_id   Int
+  status       MissionStatus @default(pending)
+  completed_at DateTime?
+
+  user    User    @relation(fields: [user_id], references: [id])
+  mission Mission @relation(fields: [mission_id], references: [id])
+
+  @@unique([user_id, mission_id])
+}
+
+model LoginReward {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  date         DateTime
+  reward_points Int
+
+  user User @relation(fields: [user_id], references: [id])
+}
+
+model SocialAccount {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  platform   String   // twitter یا instagram
+  username   String   @unique
+  updated_at DateTime?
+
+  user User @relation(fields: [user_id], references: [id])
+}
