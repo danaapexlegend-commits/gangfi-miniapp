@@ -10,7 +10,7 @@ const router = express.Router();
  * type: "weekly" یا "seasonal"
  */
 router.post("/create", async (req, res) => {
-  const { title, description, reward_points, type, target_link, target_id } = req.body;
+  const { title, description, reward_points, type, target_link, target_id, missionLink } = req.body;
   if (!title || !reward_points || !type) return res.status(400).json({ error: "title, reward_points and type required" });
   if (!["weekly", "seasonal"].includes(type)) return res.status(400).json({ error: "type must be weekly or seasonal" });
 
@@ -23,7 +23,8 @@ router.post("/create", async (req, res) => {
         is_active: true,
         type,
         target_link,
-        target_id
+        target_id,
+        missionLink   // 👈 اضافه شد
       }
     });
     res.json({ success: true, mission });
@@ -32,6 +33,7 @@ router.post("/create", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 // GET all missions (for admin)
 router.get("/all", async (req, res) => {
@@ -47,7 +49,7 @@ router.get("/all", async (req, res) => {
 // update mission
 router.put("/update/:id", async (req, res) => {
   const { id } = req.params;
-  const { title, description, reward_points, is_active, type, target_link, target_id } = req.body;
+  const { title, description, reward_points, is_active, type, target_link, target_id, missionLink } = req.body;
   try {
     const mission = await prisma.mission.update({
       where: { id: Number(id) },
@@ -58,7 +60,8 @@ router.put("/update/:id", async (req, res) => {
         is_active,
         type,
         target_link,
-        target_id
+        target_id,
+        missionLink   // 👈 اضافه شد
       }
     });
     res.json({ success: true, mission });

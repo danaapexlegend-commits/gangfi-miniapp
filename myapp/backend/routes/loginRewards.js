@@ -15,21 +15,29 @@ router.post("/daily", async (req, res) => {
   if (!userId) return res.status(400).json({ error: "userId required" });
 
   try {
-    const now = new Date();
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-
+    // بررسی اینکه امروز قبلاً claim شده است یا خیر
+    const since = new Date();
+    since.setUTCHours(0,0,0,0);
     const existing = await prisma.loginReward.findFirst({
-      where: { user_id: Number(userId), date: { gte: todayUtc } }
+      where: {
+        user_id: Number(userId),
+        date: {
+          gte: since
+        }
+      }
     });
-    if (existing) return res.status(400).json({ error: "Already claimed today" });
+
+    if (existing) {
+      return res.status(400).json({ error: "Already claimed today" });
+    }
 
     const reward = await prisma.loginReward.create({
       data: { user_id: Number(userId), date: new Date(), reward_points: 10 }
     });
 
-    await prisma.user.update({ where: { id: Number(userId) }, data: { total_score: { increment: 10 } } });
+    const updatedUser = await prisma.user.update({ where: { id: Number(userId) }, data: { total_score: { increment: 10 } } });
 
-    res.json({ success: true, reward });
+    res.json({ success: true, reward, user: updatedUser });
   } catch (err) {
     console.error("POST /rewards/daily", err);
     res.status(500).json({ error: "Server error" });

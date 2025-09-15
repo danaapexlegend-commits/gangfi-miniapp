@@ -27,8 +27,9 @@ app.use(helmet());
 
 // اجازه دسترسی فقط به فرانت‌تون — در production مقدار را به دامنهٔ واقعی تغییر بده
 
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "*";
 app.use(cors({
-  origin: "http://localhost:5173",  // آدرس فرانت
+  origin: FRONTEND_ORIGIN === "*" ? true : FRONTEND_ORIGIN,
   credentials: true
 }));
 

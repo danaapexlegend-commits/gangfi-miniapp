@@ -16,19 +16,17 @@ import { claimDailyReward, setGang } from "../api/user";
 export default function Dashboard() {
   const { user, setUser } = useContext(UserContext);
 
-  // گرفتن daily reward
   async function handleDailyReward() {
     try {
-      const data = await claimDailyReward();
-      setUser((prev) => ({ ...prev, total_score: data.total_score }));
-      alert("Daily reward claimed!");
+      const { user: updatedUser } = await claimDailyReward(user.id);
+      setUser(updatedUser);
+      alert("Daily reward claimed: +10!");
     } catch (err) {
-        console.error(err);
+      console.error(err);
       alert("Already claimed today or error!");
     }
   }
 
-  // انتخاب گنگ → فقط یکبار
   async function handleGangSelect(g) {
     if (user.gang) {
       alert("You have already chosen a gang. You cannot change it now.");
@@ -36,13 +34,20 @@ export default function Dashboard() {
     }
 
     try {
-      const data = await setGang(g.name); // ذخیره توی دیتابیس
-      setUser((prev) => ({ ...prev, gang: data.gang }));
+      const res = await setGang(g);
+      if (res && res.success) {
+        setUser(res.user);
+        alert("Gang selected!");
+      } else {
+        alert(res.error || "Failed to set gang");
+      }
     } catch (err) {
-      console.error("Gang select failed", err);
-      alert("Failed to set gang");
+      console.error("setGang error", err);
+      alert("Error setting gang");
     }
   }
+
+  if (!user) return <div>Loading...</div>;
 
   return (
     <div style={{ padding: 20, paddingBottom: 90 }}>

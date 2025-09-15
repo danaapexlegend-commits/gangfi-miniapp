@@ -46,6 +46,7 @@ model Mission {
   title         String
   description   String?
   reward_points Int
+  missionLink   String?   // لینک ماموریت
   is_active     Boolean       @default(true)
   type          String        @default("weekly") // "weekly" یا "seasonal"
   target_link   String?

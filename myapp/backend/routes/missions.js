@@ -8,10 +8,27 @@ const prisma = new PrismaClient();
 /** گرفتن لیست ماموریت‌های فعال */
 router.get("/", async (req, res) => {
   try {
-    const missions = await prisma.mission.findMany({ where: { is_active: true }});
-    res.json(missions);
+    const missions = await prisma.mission.findMany({
+      where: { is_active: true },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        reward_points: true,
+        missionLink: true,   // 👈 اینو هم بیار
+        type: true
+      }
+    });
+
+    // برای راحتی فرانت دسته‌بندی کنیم
+    const grouped = {
+      weekly: missions.filter(m => m.type === "weekly"),
+      seasonal: missions.filter(m => m.type === "seasonal")
+    };
+
+    res.json(grouped);
   } catch (err) {
-    console.error(err);
+    console.error("GET /missions error", err);
     res.status(500).json({ error: "Server error" });
   }
 });

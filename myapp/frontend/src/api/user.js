@@ -8,8 +8,9 @@ export async function getCurrentUser() {
 }
 
 // گرفتن daily reward
-export async function claimDailyReward() {
-  const res = await client.post("/users/loginreward/claim");
+export async function claimDailyReward(userId) {
+  // backend expects { userId } in body at POST /api/rewards/daily
+  const res = await client.post("/rewards/daily", { userId });
   return res.data;
 }
 
