@@ -11,17 +11,15 @@ export default function Missions() {
   useEffect(() => {
     async function loadMissions() {
       try {
-        // همه ماموریت‌ها رو می‌گیریم
         const all = await client.get("/missions");
-        const missions = all.data || [];
+        const missions = all.data || {};
 
-        // دسته‌بندی بر اساس type
-        setWeekly(missions.filter((m) => m.type === "weekly"));
-        setSeasonal(missions.filter((m) => m.type === "seasonal"));
+        // 🔹 چون بک‌اند object می‌ده { weekly:[], seasonal:[] }
+        setWeekly(missions.weekly || []);
+        setSeasonal(missions.seasonal || []);
 
-        // ماموریت‌های تکمیل‌شده
         const c = await client.get("/missions/completed");
-        setCompleted(c.data.missions || []);
+        setCompleted(c.data?.missions || []);
       } catch (e) {
         console.error("Failed to load missions", e);
       }
@@ -29,7 +27,7 @@ export default function Missions() {
     loadMissions();
   }, []);
 
-  const handleGo = async (mission) => {
+  const handleGo = async (mission, section) => {
     if (mission.missionLink) {
       window.open(mission.missionLink, "_blank");
     } else {
@@ -37,15 +35,31 @@ export default function Missions() {
     }
 
     try {
-      await client.post(`/missions/${mission.id}/start`);
+      await client.post(`/missions/${mission.id}/start`, { userId: 1 }); // 👈 بتا
+
+      // 🔹 بعد از کلیک روی Go وضعیت لوکال رو pending می‌کنیم
+      if (section === "weekly") {
+        setWeekly((prev) =>
+          prev.map((m) =>
+            m.id === mission.id ? { ...m, status: "pending" } : m
+          )
+        );
+      }
+      if (section === "seasonal") {
+        setSeasonal((prev) =>
+          prev.map((m) =>
+            m.id === mission.id ? { ...m, status: "pending" } : m
+          )
+        );
+      }
     } catch (e) {
       console.error("Failed to set mission pending", e);
     }
   };
 
-  const renderList = (missions, isCompleted = false) => (
+  const renderList = (missions, section, isCompleted = false) => (
     <div style={{ marginTop: 10 }}>
-      {missions.length === 0 ? (
+      {(!missions || missions.length === 0) ? (
         <p style={{ fontSize: 12, color: "#aaa" }}>No missions available</p>
       ) : (
         missions.map((m) => (
@@ -68,15 +82,15 @@ export default function Missions() {
               </span>
               {!isCompleted && (
                 <button
-                  onClick={() => handleGo(m)}
+                  onClick={() => handleGo(m, section)}
                   style={{
-                    background: "#4F46E5",
+                    background: m.status === "pending" ? "#aaa" : "#4F46E5",
                     color: "white",
                     borderRadius: "6px",
                     padding: "4px 10px",
                   }}
                 >
-                  Go
+                  {m.status === "pending" ? "Pending" : "Go"}
                 </button>
               )}
             </div>
@@ -93,7 +107,7 @@ export default function Missions() {
         text="Daily Missions"
         onClick={() => setOpenSection(openSection === "daily" ? null : "daily")}
       />
-      {openSection === "daily" && renderList([])}
+      {openSection === "daily" && renderList([], "daily")}
 
       {/* Weekly */}
       <InfoButton
@@ -102,7 +116,7 @@ export default function Missions() {
           setOpenSection(openSection === "weekly" ? null : "weekly")
         }
       />
-      {openSection === "weekly" && renderList(weekly)}
+      {openSection === "weekly" && renderList(weekly, "weekly")}
 
       {/* Seasonal */}
       <InfoButton
@@ -111,7 +125,7 @@ export default function Missions() {
           setOpenSection(openSection === "seasonal" ? null : "seasonal")
         }
       />
-      {openSection === "seasonal" && renderList(seasonal)}
+      {openSection === "seasonal" && renderList(seasonal, "seasonal")}
 
       {/* Completed */}
       <InfoButton
@@ -120,7 +134,7 @@ export default function Missions() {
           setOpenSection(openSection === "completed" ? null : "completed")
         }
       />
-      {openSection === "completed" && renderList(completed, true)}
+      {openSection === "completed" && renderList(completed, "completed", true)}
 
       {/* Bloodlust */}
       <InfoButton

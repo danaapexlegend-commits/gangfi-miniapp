@@ -1,6 +1,8 @@
 // routes/adminMissions.js
 import express from "express";
 import prisma from "../db.js";
+import fetch from "node-fetch"; // بالای فایل
+
 
 const router = express.Router();
 
@@ -74,7 +76,23 @@ router.put("/update/:id", async (req, res) => {
 // deactivate
 router.put("/deactivate/:id", async (req, res) => {
   try {
-    const mission = await prisma.mission.update({ where: { id: Number(req.params.id) }, data: { is_active: false }});
+    const mission = await prisma.mission.update({ 
+      where: { id: Number(req.params.id) }, 
+      data: { is_active: false }
+    });
+
+    // بعد از غیر فعال کردن، چک کردن رو هم صدا بزنیم
+    if (mission.type === "weekly") {
+      await fetch(`http://localhost:3000/api/missions/check-weekly/${mission.id}`, {
+        method: "POST"
+      });
+    }
+    if (mission.type === "seasonal") {
+      await fetch(`http://localhost:3000/api/missions/check-seasonal/${mission.id}`, {
+        method: "POST"
+      });
+    }
+
     res.json({ success: true, mission });
   } catch (err) {
     console.error("PUT /admin/missions/deactivate/:id", err);

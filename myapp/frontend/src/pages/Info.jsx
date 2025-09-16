@@ -1,17 +1,70 @@
 // pages/Info.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "../components/Modal";
 import InfoButton from "../components/InfoButton";
+import client from "../api/client";
 
 export default function Info() {
   const [openModal, setOpenModal] = useState(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [inviterCode, setInviterCode] = useState("");   // 👈 مقدار واقعی ثبت‌شده
+  const [inviterInput, setInviterInput] = useState(""); // 👈 فقط برای input
+  const [referralCount, setReferralCount] = useState(0);
+  const [twitter, setTwitter] = useState("");
+  const [instagram, setInstagram] = useState("");
+
+  const userId = 1; // 👈 بتا: یوزر ثابت
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // دریافت اطلاعات کاربر (کد رفرال + تعداد دعوتی‌ها + inviterCode اگه باشه)
+        const u = await client.get(`/users/${userId}`);
+        setReferralCode(u.data.referral_code);
+        setReferralCount(u.data.referral_count || 0);
+        if (u.data.invited_by) {
+          setInviterCode(u.data.invited_by); // 👈 کدی که قبلاً ثبت شده
+        }
+
+        // دریافت اکانت‌های اجتماعی
+        const socials = await client.get(`/social/${userId}`);
+        socials.data.forEach((s) => {
+          if (s.platform === "twitter") setTwitter(s.username);
+          if (s.platform === "instagram") setInstagram(s.username);
+        });
+      } catch (err) {
+        console.error("Failed to load user/social data", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  const handleSetInviter = async () => {
+    try {
+      await client.post("/referrals/set-invited-by", {
+        userId,
+        inviterCode: inviterInput, // 👈 از input ارسال کن
+      });
+      alert("Inviter code saved!");
+      setInviterCode(inviterInput); // 👈 بعد از موفقیت، مقدار واقعی ست بشه
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to save inviter code");
+      console.error(err);
+    }
+  };
+
+  const handleSaveSocial = async (platform, username) => {
+    try {
+      await client.post(`/social/${userId}`, { platform, username });
+      alert(`${platform} saved!`);
+    } catch (err) {
+      alert(`Failed to save ${platform}`);
+      console.error(err);
+    }
+  };
 
   const handleOpen = (name) => setOpenModal(name);
   const handleClose = () => setOpenModal(null);
-
-  const referralCode = "ABC1234567";
-  const inviterCode = "";
-  const referralCount = 5;
 
   return (
     <div style={{ padding: 20, paddingBottom: 90 }}>
@@ -30,7 +83,9 @@ export default function Info() {
 
       {/* Referral modal */}
       <Modal show={openModal === "referral"} onClose={handleClose} title="Referral Code">
-        <p>Your code: <b>{referralCode}</b></p>
+        <p>
+          Your code: <b>{referralCode}</b>
+        </p>
         <InfoButton
           text="Copy referral link"
           onClick={() => {
@@ -38,28 +93,65 @@ export default function Info() {
             alert("Referral link copied!");
           }}
         />
-        <div style={{ marginTop: 10 }}>
-          <label>Inviter code:</label>
-          <input type="text" defaultValue={inviterCode} style={{ display: "block", width: "100%", padding: 6, marginTop: 5 }} />
-        </div>
+
+        {/* 👇 اگر inviterCode ثبت شده باشه → فقط نمایش */}
+        {inviterCode ? (
+          <p style={{ marginTop: 10 }}>
+            Inviter code: <b>{inviterCode}</b>
+          </p>
+        ) : (
+          <div style={{ marginTop: 10 }}>
+            <label>Inviter code:</label>
+            <input
+              type="text"
+              value={inviterInput}
+              onChange={(e) => setInviterInput(e.target.value)}
+              style={{ display: "block", width: "100%", padding: 6, marginTop: 5 }}
+            />
+            <InfoButton text="Save inviter code" onClick={handleSetInviter} />
+          </div>
+        )}
+
         <p style={{ marginTop: 10 }}>Users invited: {referralCount}</p>
       </Modal>
 
       {/* Twitter modal */}
       <Modal show={openModal === "twitter"} onClose={handleClose} title="Add Twitter account">
-        <input type="text" placeholder="Enter your Twitter username" style={{ display: "block", width: "100%", padding: 8 }} />
+        <input
+          type="text"
+          placeholder="Enter your Twitter username"
+          value={twitter}
+          onChange={(e) => setTwitter(e.target.value)}
+          style={{ display: "block", width: "100%", padding: 8 }}
+        />
+        <InfoButton text="Save" onClick={() => handleSaveSocial("twitter", twitter)} />
       </Modal>
 
       {/* Instagram modal */}
       <Modal show={openModal === "instagram"} onClose={handleClose} title="Add Instagram account">
-        <input type="text" placeholder="Enter your Instagram username" style={{ display: "block", width: "100%", padding: 8 }} />
+        <input
+          type="text"
+          placeholder="Enter your Instagram username"
+          value={instagram}
+          onChange={(e) => setInstagram(e.target.value)}
+          style={{ display: "block", width: "100%", padding: 8 }}
+        />
+        <InfoButton text="Save" onClick={() => handleSaveSocial("instagram", instagram)} />
       </Modal>
 
       {/* Follow us */}
       <Modal show={openModal === "followus"} onClose={handleClose} title="Follow us">
-        <a href="https://twitter.com/gangfi" target="_blank" rel="noreferrer">Twitter</a><br />
-        <a href="https://instagram.com/gangfi" target="_blank" rel="noreferrer">Instagram</a><br />
-        <a href="https://t.me/gangfi" target="_blank" rel="noreferrer">Telegram</a>
+        <a href="https://twitter.com/gangfi" target="_blank" rel="noreferrer">
+          Twitter
+        </a>
+        <br />
+        <a href="https://instagram.com/gangfi" target="_blank" rel="noreferrer">
+          Instagram
+        </a>
+        <br />
+        <a href="https://t.me/gangfi" target="_blank" rel="noreferrer">
+          Telegram
+        </a>
       </Modal>
 
       {/* Follow gangs */}
@@ -86,7 +178,9 @@ export default function Info() {
 
       {/* Investment */}
       <Modal show={openModal === "investment"} onClose={handleClose} title="Private sale">
-        <a href="https://privatesale.gangfi" target="_blank" rel="noreferrer">Go to private sale</a>
+        <a href="https://privatesale.gangfi" target="_blank" rel="noreferrer">
+          Go to private sale
+        </a>
       </Modal>
 
       {/* Mechanism */}

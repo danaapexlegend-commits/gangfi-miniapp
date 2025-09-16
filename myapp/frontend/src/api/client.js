@@ -1,10 +1,10 @@
-// api/client.js
 import axios from "axios";
 
-// axios instance -> همه درخواست‌ها از این می‌رن
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:3000";
+
 const client = axios.create({
-  baseURL: "http://localhost:3000/api", // آدرس بک‌اند
-  withCredentials: true, // برای کوکی/سشن اگه لازم شد
+  baseURL: API_BASE + "/api",
+  withCredentials: true,
 });
 
 export default client;

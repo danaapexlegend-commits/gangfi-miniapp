@@ -1,7 +1,7 @@
-// routes/auth.js
 import express from "express";
 import prisma from "../db.js";
 import { checkTelegramAuth } from "../auth/telegramAuth.js";
+import { nanoid } from "nanoid"; // 👈 اضافه شد برای کد رفرال یکتا
 
 const router = express.Router();
 
@@ -18,7 +18,6 @@ router.post("/login/telegram", async (req, res) => {
   if (!initData) return res.status(400).json({ error: "initData required" });
 
   // initData ممکنه به فرم querystring باشه یا object
-  // اگر querystring است، parse کن:
   let dataObj = {};
   if (typeof initData === "string") {
     const params = new URLSearchParams(initData);
@@ -38,14 +37,26 @@ router.post("/login/telegram", async (req, res) => {
     let user = await prisma.user.findUnique({ where: { telegram_id } });
 
     if (!user) {
-      // referral_code یکتا بساز
-      const code = "G" + Math.random().toString(36).slice(2, 9).toUpperCase();
+      // 👇 referral_code یکتا بساز
+      let code;
+      let exists = true;
+
+      while (exists) {
+        code = "G" + nanoid(7).toUpperCase(); // مثل GABC123X
+        const existing = await prisma.user.findUnique({
+          where: { referral_code: code }
+        });
+        if (!existing) exists = false;
+      }
+
       user = await prisma.user.create({
         data: {
           telegram_id,
           username,
           first_name,
-          referral_code: code
+          referral_code: code,
+          referral_count: 0,   // 👈 مطمئن باش صفر شروع میشه
+          total_score: 0       // 👈 برای امتیاز هم صفر
         }
       });
     } else {

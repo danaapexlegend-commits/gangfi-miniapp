@@ -28,22 +28,41 @@ app.use(helmet());
 // اجازه دسترسی فقط به فرانت‌تون — در production مقدار را به دامنهٔ واقعی تغییر بده
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "*";
-app.use(cors({
-  origin: FRONTEND_ORIGIN === "*" ? true : FRONTEND_ORIGIN,
-  credentials: true
-}));
+
+let allowedOrigins;
+if (FRONTEND_ORIGIN === "*") {
+  allowedOrigins = true; // یعنی همه آزاد
+} else if (FRONTEND_ORIGIN.includes(",")) {
+  allowedOrigins = FRONTEND_ORIGIN.split(",").map(o => o.trim());
+} else {
+  allowedOrigins = FRONTEND_ORIGIN;
+}
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 
 // لاگ درخواست‌ها
 app.use(morgan("dev"));
 
-// محدودیت کلی درخواست (قابل تنظیم)
-app.use(rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 400, // max requests per window per IP (تست)
-  message: { error: "Too many requests, try later" }
-}));
+// محدود کردن نرخ درخواست‌ها (برای auth مثلاً)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+});
+app.use("/api/auth", authLimiter);
 
-// mount routes
+// جلوگیری از cache برای endpoint ماموریت‌ها
+app.use("/api/missions", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.removeHeader("ETag");
+  next();
+});
+
+// routes اصلی
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/referrals", referralsRoutes);
@@ -53,8 +72,8 @@ app.use("/api/admin/missions", adminMissionRoutes);
 app.use("/api/missions", missionRoutes);
 app.use("/api/twitter", twitterRoutes);
 
-// health
-app.get("/api/ping", (req, res) => res.json({ ok: true, now: new Date() }));
-
+// start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

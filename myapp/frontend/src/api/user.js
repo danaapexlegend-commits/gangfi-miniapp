@@ -1,9 +1,14 @@
 // api/user.js
 import client from "./client";
 
-// گرفتن اطلاعات یوزر فعلی
+
 export async function getCurrentUser() {
-  const res = await client.get("/users/me");
+  let tgId = 1; // 👈 fallback برای تست لوکال
+  if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+    tgId = window.Telegram.WebApp.initDataUnsafe.user.id;
+  }
+
+  const res = await client.get(`/users/me?telegram_id=${tgId}`);
   return res.data;
 }
 
