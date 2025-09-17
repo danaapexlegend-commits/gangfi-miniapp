@@ -1,14 +1,12 @@
-// App.jsx
 // ================================
 // Root of the React app
-// - Uses react-router-dom for 4 main pages
-// - Always shows NavBar at bottom
-// - Pages: Dashboard, Missions, ComingSoon, Info
 // ================================
 
-import React, {  useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { getCurrentUser } from "./api/user";
+
+// api
+import { loginWithTelegram, getCurrentUser } from "./api/user";
 
 // Components
 import NavBar from "./components/NavBar";
@@ -22,20 +20,29 @@ import Info from "./pages/Info";
 // context
 import { UserContext } from "./context/UserContext";
 
-
 function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    async function loadUser() {
+    async function init() {
       try {
-        const data = await getCurrentUser();
+        console.log("🔎 window.Telegram.WebApp:", window.Telegram?.WebApp);
+        console.log("🔎 initData:", window.Telegram?.WebApp?.initData);
+        console.log("🔎 initDataUnsafe:", window.Telegram?.WebApp?.initDataUnsafe);
+
+        // 1. Login first
+        const loginRes = await loginWithTelegram();
+        const loggedUser = loginRes.user;
+        console.log("✅ Logged in user:", loggedUser);
+
+        // 2. Fetch fresh user data (optional)
+        const data = await getCurrentUser(String(loggedUser.telegram_id));
         setUser(data.user);
       } catch (err) {
-        console.error("Failed to load user", err);
+        console.error("❌ Failed to load user", err);
       }
     }
-    loadUser();
+    init();
   }, []);
 
   if (!user) return <div>Loading...</div>;
@@ -43,7 +50,6 @@ function App() {
   return (
     <UserContext.Provider value={{ user, setUser }}>
       <Router>
-        {/* wrapper for all pages */}
         <div style={{ paddingBottom: "80px" }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -53,7 +59,6 @@ function App() {
           </Routes>
         </div>
 
-        {/* bottom navigation bar */}
         <NavBar />
       </Router>
     </UserContext.Provider>

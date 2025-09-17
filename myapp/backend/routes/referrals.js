@@ -1,4 +1,3 @@
-// routes/referrals.js
 import express from "express";
 import prisma from "../db.js";
 
@@ -6,19 +5,18 @@ const router = express.Router();
 
 /**
  * POST /api/referrals/invite
- * وقتی کاربری از طریق لینک وارد شد
- * body: { inviterCode, invitedId }
+ * body: { inviterCode, invited_telegram_id }
  */
 router.post("/invite", async (req, res) => {
-  const { inviterCode, invitedId } = req.body;
-  if (!inviterCode || !invitedId)
-    return res.status(400).json({ error: "inviterCode and invitedId required" });
+  const { inviterCode, invited_telegram_id } = req.body;
+  if (!inviterCode || !invited_telegram_id)
+    return res.status(400).json({ error: "inviterCode and invited_telegram_id required" });
 
   try {
     const inviter = await prisma.user.findUnique({ where: { referral_code: inviterCode } });
     if (!inviter) return res.status(404).json({ error: "Inviter not found" });
 
-    const invited = await prisma.user.findUnique({ where: { id: Number(invitedId) } });
+    const invited = await prisma.user.findUnique({ where: { telegram_id: String(invited_telegram_id) } });
     if (!invited) return res.status(404).json({ error: "Invited user not found" });
 
     const existing = await prisma.referralInvite.findFirst({
@@ -48,25 +46,26 @@ router.post("/invite", async (req, res) => {
 
 /**
  * POST /api/referrals/set-invited-by
- * وقتی کاربر خودش دستی کد رو وارد میکنه
- * body: { userId, inviterCode }
+ * body: { telegram_id, inviterCode }
  */
 router.post("/set-invited-by", async (req, res) => {
-  const { userId, inviterCode } = req.body;
-  if (!userId || !inviterCode)
-    return res.status(400).json({ error: "userId and inviterCode required" });
+  const { telegram_id, inviterCode } = req.body;
+
+  if (!telegram_id || !inviterCode) {
+    return res.status(400).json({ error: "telegram_id and inviterCode required" });
+  }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: Number(userId) } });
+    const user = await prisma.user.findUnique({ where: { telegram_id: String(telegram_id) } });
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.invited_by) return res.status(400).json({ error: "invited_by already set" });
 
     const inviter = await prisma.user.findUnique({ where: { referral_code: inviterCode } });
     if (!inviter) return res.status(404).json({ error: "Inviter not found" });
 
-    await prisma.$transaction([
+    const [updatedUser] = await prisma.$transaction([
       prisma.user.update({
-        where: { id: Number(userId) },
+        where: { id: user.id },
         data: {
           invited_by: inviterCode,
           total_score: { increment: 150 }
@@ -80,11 +79,11 @@ router.post("/set-invited-by", async (req, res) => {
         }
       }),
       prisma.referralInvite.create({
-        data: { inviter_id: inviter.id, invited_id: Number(userId) }
+        data: { inviter_id: inviter.id, invited_id: user.id }
       })
     ]);
 
-    res.json({ success: true, message: "invited_by set and rewards applied" });
+    res.json({ success: true, message: "invited_by set and rewards applied", user: updatedUser });
   } catch (err) {
     console.error("POST /referrals/set-invited-by", err);
     res.status(500).json({ error: "Server error" });

@@ -1,10 +1,12 @@
-// pages/Info.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Modal from "../components/Modal";
 import InfoButton from "../components/InfoButton";
 import client from "../api/client";
+import { UserContext } from "../context/UserContext";
 
 export default function Info() {
+  const { user } = useContext(UserContext);
+
   const [openModal, setOpenModal] = useState(null);
   const [referralCode, setReferralCode] = useState("");
   const [inviterCode, setInviterCode] = useState("");   // 👈 مقدار واقعی ثبت‌شده
@@ -13,21 +15,19 @@ export default function Info() {
   const [twitter, setTwitter] = useState("");
   const [instagram, setInstagram] = useState("");
 
-  const userId = 1; // 👈 بتا: یوزر ثابت
-
   useEffect(() => {
     async function loadData() {
       try {
         // دریافت اطلاعات کاربر (کد رفرال + تعداد دعوتی‌ها + inviterCode اگه باشه)
-        const u = await client.get(`/users/${userId}`);
-        setReferralCode(u.data.referral_code);
-        setReferralCount(u.data.referral_count || 0);
-        if (u.data.invited_by) {
-          setInviterCode(u.data.invited_by); // 👈 کدی که قبلاً ثبت شده
+        const u = await client.get(`/users/me?telegram_id=${String(user.telegram_id)}`);
+        setReferralCode(u.data.user.referral_code);
+        setReferralCount(u.data.user.referral_count || 0);
+        if (u.data.user.invited_by) {
+          setInviterCode(u.data.user.invited_by); // 👈 کدی که قبلاً ثبت شده
         }
 
         // دریافت اکانت‌های اجتماعی
-        const socials = await client.get(`/social/${userId}`);
+        const socials = await client.get(`/social/${String(user.telegram_id)}`);
         socials.data.forEach((s) => {
           if (s.platform === "twitter") setTwitter(s.username);
           if (s.platform === "instagram") setInstagram(s.username);
@@ -36,17 +36,17 @@ export default function Info() {
         console.error("Failed to load user/social data", err);
       }
     }
-    loadData();
-  }, []);
+    if (user) loadData();
+  }, [user]);
 
   const handleSetInviter = async () => {
     try {
       await client.post("/referrals/set-invited-by", {
-        userId,
-        inviterCode: inviterInput, // 👈 از input ارسال کن
+        invited_telegram_id: String(user.telegram_id),
+        inviterCode: inviterInput,
       });
       alert("Inviter code saved!");
-      setInviterCode(inviterInput); // 👈 بعد از موفقیت، مقدار واقعی ست بشه
+      setInviterCode(inviterInput);
     } catch (err) {
       alert(err.response?.data?.error || "Failed to save inviter code");
       console.error(err);
@@ -55,7 +55,7 @@ export default function Info() {
 
   const handleSaveSocial = async (platform, username) => {
     try {
-      await client.post(`/social/${userId}`, { platform, username });
+      await client.post(`/social/${String(user.telegram_id)}`, { platform, username });
       alert(`${platform} saved!`);
     } catch (err) {
       alert(`Failed to save ${platform}`);
@@ -94,7 +94,6 @@ export default function Info() {
           }}
         />
 
-        {/* 👇 اگر inviterCode ثبت شده باشه → فقط نمایش */}
         {inviterCode ? (
           <p style={{ marginTop: 10 }}>
             Inviter code: <b>{inviterCode}</b>
@@ -141,17 +140,9 @@ export default function Info() {
 
       {/* Follow us */}
       <Modal show={openModal === "followus"} onClose={handleClose} title="Follow us">
-        <a href="https://twitter.com/gangfi" target="_blank" rel="noreferrer">
-          Twitter
-        </a>
-        <br />
-        <a href="https://instagram.com/gangfi" target="_blank" rel="noreferrer">
-          Instagram
-        </a>
-        <br />
-        <a href="https://t.me/gangfi" target="_blank" rel="noreferrer">
-          Telegram
-        </a>
+        <a href="https://twitter.com/gangfi" target="_blank" rel="noreferrer">Twitter</a><br />
+        <a href="https://instagram.com/gangfi" target="_blank" rel="noreferrer">Instagram</a><br />
+        <a href="https://t.me/gangfi" target="_blank" rel="noreferrer">Telegram</a>
       </Modal>
 
       {/* Follow gangs */}

@@ -1,15 +1,22 @@
-// routes/missions.js
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db.js";
 import { fetchAllRetweeters, fetchAllFollowers } from "./twitterClient.js";
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
-/** گرفتن لیست ماموریت‌های فعال */
+/** گرفتن لیست ماموریت‌های فعال
+ * query: ?telegram_id=12345
+ */
 router.get("/", async (req, res) => {
-  const userId = Number(req.query.userId || 1); // بتا
+  const { telegram_id } = req.query;
+  if (!telegram_id) return res.status(400).json({ error: "telegram_id query required" });
+
   try {
+    const user = await prisma.user.findUnique({ where: { telegram_id: String(telegram_id) }});
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const userId = user.id;
+
     const missions = await prisma.mission.findMany({
       where: { is_active: true },
       include: {
@@ -44,9 +51,17 @@ router.get("/", async (req, res) => {
 });
 
 // گرفتن ماموریت‌های تکمیل‌شده
+// query: ?telegram_id=12345
 router.get("/completed", async (req, res) => {
-  const userId = Number(req.query.userId || 1);
+  const { telegram_id } = req.query;
+  if (!telegram_id) return res.status(400).json({ error: "telegram_id query required" });
+
   try {
+    const user = await prisma.user.findUnique({ where: { telegram_id: String(telegram_id) }});
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const userId = user.id;
+
     const completed = await prisma.userMission.findMany({
       where: { user_id: userId, status: "completed" },
       include: { mission: true }
@@ -69,22 +84,26 @@ router.get("/completed", async (req, res) => {
 // شروع ماموریت → pending
 router.post("/:id/start", async (req, res) => {
   const { id } = req.params;
-  const { userId } = req.body;
+  const { telegram_id } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: "telegram_id required in body" });
 
   try {
     const mission = await prisma.mission.findUnique({ where: { id: Number(id) } });
     if (!mission) return res.status(404).json({ error: "Mission not found" });
 
+    const user = await prisma.user.findUnique({ where: { telegram_id: String(telegram_id) }});
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     const userMission = await prisma.userMission.upsert({
       where: {
         user_id_mission_id: {
-          user_id: Number(userId),
+          user_id: user.id,
           mission_id: Number(id),
         }
       },
       update: { status: "pending" },
       create: {
-        user_id: Number(userId),
+        user_id: user.id,
         mission_id: Number(id),
         status: "pending"
       }

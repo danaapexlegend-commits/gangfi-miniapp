@@ -1,4 +1,3 @@
-// pages/Dashboard.jsx
 import React, { useContext } from "react";
 import InfoButton from "../components/InfoButton";
 import GangSelector from "../components/GangSelector";
@@ -18,7 +17,7 @@ export default function Dashboard() {
 
   async function handleDailyReward() {
     try {
-      const { user: updatedUser } = await claimDailyReward(user.id);
+      const { user: updatedUser } = await claimDailyReward(String(user.telegram_id));
       setUser(updatedUser);
       alert("Daily reward claimed: +10!");
     } catch (err) {
@@ -34,7 +33,7 @@ export default function Dashboard() {
     }
 
     try {
-      const res = await setGang(g);
+      const res = await setGang(g, String(user.telegram_id));
       if (res && res.success) {
         setUser(res.user);
         alert("Gang selected!");

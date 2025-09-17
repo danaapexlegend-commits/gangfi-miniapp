@@ -1,4 +1,3 @@
-// routes/users.js
 import express from "express";
 import prisma from "../db.js";
 
@@ -6,36 +5,24 @@ const router = express.Router();
 
 /**
  * GET /api/users/me
- * - اگه querystring شامل telegram_id باشه → همون یوزر رو میاره
- * - وگرنه اولین یوزر رو برمی‌گردونه (برای تست لوکال)
+ * query: ?telegram_id=12345
+ * - همیشه telegram_id لازم است (بدون fallback به اولین یوزر)
  */
 router.get("/me", async (req, res) => {
   try {
     const { telegram_id } = req.query;
-    let user;
+    if (!telegram_id) return res.status(400).json({ error: "telegram_id required" });
 
-    if (telegram_id) {
-      user = await prisma.user.findUnique({
-        where: { telegram_id: Number(telegram_id) },
-        include: {
-          socialAccounts: true,
-          referralsMade: true,
-          referralsGot: true,
-          missions: true,
-          loginRewards: true,
-        },
-      });
-    } else {
-      user = await prisma.user.findFirst({
-        include: {
-          socialAccounts: true,
-          referralsMade: true,
-          referralsGot: true,
-          missions: true,
-          loginRewards: true,
-        },
-      });
-    }
+    const user = await prisma.user.findUnique({
+      where: { telegram_id: String(telegram_id) },
+      include: {
+        socialAccounts: true,
+        referralsMade: true,
+        referralsGot: true,
+        missions: true,
+        loginRewards: true,
+      },
+    });
 
     if (!user) return res.status(404).json({ error: "No user found" });
 
@@ -48,7 +35,7 @@ router.get("/me", async (req, res) => {
 
 /**
  * GET /api/users/:id
- * گرفتن اطلاعات یوزر بر اساس id
+ * گرفتن اطلاعات یوزر بر اساس id (unchanged)
  */
 router.get("/:id", async (req, res) => {
   try {
@@ -66,14 +53,15 @@ router.get("/:id", async (req, res) => {
 
 /**
  * POST /api/users/set-gang
- * ست کردن گنگ برای کاربر (برای تست اولین یوزر رو آپدیت می‌کنیم)
+ * body: { gang, telegram_id }
  */
 router.post("/set-gang", async (req, res) => {
-  const { gang } = req.body;
+  const { gang, telegram_id } = req.body;
   if (!gang) return res.status(400).json({ error: "Gang name required" });
+  if (!telegram_id) return res.status(400).json({ error: "telegram_id required" });
 
   try {
-    const user = await prisma.user.findFirst();
+    const user = await prisma.user.findUnique({ where: { telegram_id: String(telegram_id) }});
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const updated = await prisma.user.update({
@@ -100,7 +88,7 @@ router.post("/create", async (req, res) => {
     const code = "G" + Math.random().toString(36).slice(2, 9).toUpperCase();
     const user = await prisma.user.create({
       data: {
-        telegram_id: Number(telegram_id),
+        telegram_id: String(telegram_id),
         username,
         first_name,
         referral_code: code,

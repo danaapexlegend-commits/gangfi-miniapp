@@ -1,29 +1,27 @@
-// frontend/src/api/missions.js
 import client from "./client";
 
 /**
  * GET /api/missions
  * - Expect either array or object { weekly:[], seasonal:[], bloodlust:[], ... }
  */
-export async function getMissions() {
-  const res = await client.get("/missions");
+export async function getMissions(telegramId) {
+  const res = await client.get(`/missions?telegram_id=${String(telegramId)}`);
   return res.data;
 }
 
 /**
- * POST /api/missions/pending
- * body: { missionId }
- * - may or may not exist on backend; frontend handles failure gracefully
+ * POST /api/missions/:id/start
+ * body: { telegram_id }
  */
-export async function markMissionPending(missionId) {
-  const res = await client.post("/missions/pending", { missionId });
+export async function markMissionPending(missionId, telegramId) {
+  const res = await client.post(`/missions/${missionId}/start`, { telegram_id: String(telegramId) });
   return res.data;
 }
 
 /**
  * GET /api/missions/completed
  */
-export async function getCompletedMissions() {
-  const res = await client.get("/missions/completed");
+export async function getCompletedMissions(telegramId) {
+  const res = await client.get(`/missions/completed?telegram_id=${String(telegramId)}`);
   return res.data;
 }

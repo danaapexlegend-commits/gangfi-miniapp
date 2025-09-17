@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import InfoButton from "../components/InfoButton";
 import client from "../api/client";
+import { UserContext } from "../context/UserContext";
 
 export default function Missions() {
+  const { user } = useContext(UserContext);
+
   const [openSection, setOpenSection] = useState(null);
   const [weekly, setWeekly] = useState([]);
   const [seasonal, setSeasonal] = useState([]);
@@ -11,21 +14,20 @@ export default function Missions() {
   useEffect(() => {
     async function loadMissions() {
       try {
-        const all = await client.get("/missions");
+        const all = await client.get(`/missions?telegram_id=${String(user.telegram_id)}`);
         const missions = all.data || {};
 
-        // 🔹 چون بک‌اند object می‌ده { weekly:[], seasonal:[] }
         setWeekly(missions.weekly || []);
         setSeasonal(missions.seasonal || []);
 
-        const c = await client.get("/missions/completed");
+        const c = await client.get(`/missions/completed?telegram_id=${String(user.telegram_id)}`);
         setCompleted(c.data?.missions || []);
       } catch (e) {
         console.error("Failed to load missions", e);
       }
     }
-    loadMissions();
-  }, []);
+    if (user) loadMissions();
+  }, [user]);
 
   const handleGo = async (mission, section) => {
     if (mission.missionLink) {
@@ -35,9 +37,8 @@ export default function Missions() {
     }
 
     try {
-      await client.post(`/missions/${mission.id}/start`, { userId: 1 }); // 👈 بتا
+      await client.post(`/missions/${mission.id}/start`, { telegram_id: String(user.telegram_id) });
 
-      // 🔹 بعد از کلیک روی Go وضعیت لوکال رو pending می‌کنیم
       if (section === "weekly") {
         setWeekly((prev) =>
           prev.map((m) =>
@@ -102,14 +103,12 @@ export default function Missions() {
 
   return (
     <div style={{ padding: 16 }}>
-      {/* Daily */}
       <InfoButton
         text="Daily Missions"
         onClick={() => setOpenSection(openSection === "daily" ? null : "daily")}
       />
       {openSection === "daily" && renderList([], "daily")}
 
-      {/* Weekly */}
       <InfoButton
         text="Weekly Missions"
         onClick={() =>
@@ -118,7 +117,6 @@ export default function Missions() {
       />
       {openSection === "weekly" && renderList(weekly, "weekly")}
 
-      {/* Seasonal */}
       <InfoButton
         text="Seasonal Missions"
         onClick={() =>
@@ -127,7 +125,6 @@ export default function Missions() {
       />
       {openSection === "seasonal" && renderList(seasonal, "seasonal")}
 
-      {/* Completed */}
       <InfoButton
         text="Completed Missions"
         onClick={() =>
@@ -136,7 +133,6 @@ export default function Missions() {
       />
       {openSection === "completed" && renderList(completed, "completed", true)}
 
-      {/* Bloodlust */}
       <InfoButton
         text="Bloodlust"
         onClick={() => alert("Feature not available in beta")}

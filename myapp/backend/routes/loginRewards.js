@@ -1,4 +1,3 @@
-// routes/loginRewards.js
 import express from "express";
 import prisma from "../db.js";
 
@@ -6,24 +5,25 @@ const router = express.Router();
 
 /**
  * POST /api/rewards/daily
- * body: { userId }
- * - اگر امروز به وقت UTC قبلاً claim شده => خطا
- * - در غیر اینصورت رکورد بساز و total_score +10
+ * body: { telegram_id }
  */
 router.post("/daily", async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: "userId required" });
+  const { telegram_id } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: "telegram_id required" });
 
   try {
-    // بررسی اینکه امروز قبلاً claim شده است یا خیر
+    const user = await prisma.user.findUnique({
+      where: { telegram_id: String(telegram_id) }
+    });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     const since = new Date();
-    since.setUTCHours(0,0,0,0);
+    since.setUTCHours(0, 0, 0, 0);
+
     const existing = await prisma.loginReward.findFirst({
       where: {
-        user_id: Number(userId),
-        date: {
-          gte: since
-        }
+        user_id: user.id,
+        date: { gte: since }
       }
     });
 
@@ -32,10 +32,13 @@ router.post("/daily", async (req, res) => {
     }
 
     const reward = await prisma.loginReward.create({
-      data: { user_id: Number(userId), date: new Date(), reward_points: 10 }
+      data: { user_id: user.id, date: new Date(), reward_points: 10 }
     });
 
-    const updatedUser = await prisma.user.update({ where: { id: Number(userId) }, data: { total_score: { increment: 10 } } });
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { total_score: { increment: 10 } }
+    });
 
     res.json({ success: true, reward, user: updatedUser });
   } catch (err) {
